@@ -1,4 +1,14 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- สิทธิ์สำหรับการเข้าถึงรูปภาพ (Android 13 / API 33 ขึ้นไป) -->
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES"/>
+
+    <!-- สิทธิ์สำหรับการเข้าถึงรูปภาพ (Android 12 ลงไป) -->
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32"/>
+
+    <!-- สิทธิ์สำหรับใช้งานกล้อง (เผื่อเลือกรูปจากกล้องถ่ายรูป) -->
+    <uses-permission android:name="android.permission.CAMERA"/>
+
     <application
         android:label="campus_marketplace_w7"
         android:name="${applicationName}"
