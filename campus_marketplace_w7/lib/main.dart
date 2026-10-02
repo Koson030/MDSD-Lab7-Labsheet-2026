@@ -1,10 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart'; // Import dotenv
 import 'package:provider/provider.dart';
 import 'models/cart_model.dart';
-import 'screens/main_scaffold.dart'; // ← เปลี่ยนจาก screens/home_page.dart
+import 'screens/main_scaffold.dart';
 import 'repositories/item_repository_api.dart';
 
-void main() {
+Future<void> main() async {
+  // ต้องมีสั่ง ensureInitialized ก่อนโหลด .env ใน async main
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // โหลดไฟล์ .env
+  await dotenv.load(fileName: ".env");
+
   runApp(
     ChangeNotifierProvider(
       create: (context) => CartModel(),
@@ -21,9 +28,7 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'Campus Marketplace',
       debugShowCheckedModeBanner: false,
-      home: MainScaffold(
-        repository: ItemRepositoryApi(),
-      ), // ← เปลี่ยนจาก HomePage(...)
+      home: MainScaffold(repository: ItemRepositoryApi()),
     );
   }
 }

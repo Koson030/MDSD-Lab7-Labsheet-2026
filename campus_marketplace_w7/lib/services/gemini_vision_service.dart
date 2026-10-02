@@ -7,16 +7,24 @@ class GeminiVisionService {
 
   GeminiVisionService({required this.apiKey});
 
-  Future<Map<String, dynamic>> analyzeProductImage(
-    File imageFile,
-    String promptText,
-  ) async {
+  Future<Map<String, dynamic>> analyzeProductImage(File imageFile) async {
+    // ใช้ gemini-2.5-flash หรือ gemini-1.5-flash-latest
     final url = Uri.parse(
-      'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=$apiKey',
+      'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key=$apiKey',
     );
 
     final List<int> imageBytes = await imageFile.readAsBytes();
     final String base64Image = base64Encode(imageBytes);
+
+    const String promptText = '''
+คุณคือผู้ช่วยเขียนประกาศขายของมือสองในตลาดนัดออนไลน์สำหรับนักศึกษามหาวิทยาลัย
+จากรูปภาพสินค้าที่แนบมา ให้วิเคราะห์แล้วตอบกลับเป็น JSON เท่านั้น ตามโครงสร้างนี้:
+{
+  "title": "ชื่อประกาศสั้นกระชับ ไม่เกิน 40 ตัวอักษร",
+  "category": "หมวดหมู่ที่เหมาะสมที่สุด เลือกจาก: หนังสือเรียน, อุปกรณ์อิเล็กทรอนิกส์, ของแต่งหอพัก, เสื้อผ้า, อื่นๆ",
+  "description": "คำบรรยายสินค้า 2-3 ประโยค ที่ดึงดูดผู้ซื้อและบอกสภาพของสินค้าตามที่เห็นในภาพ"
+}
+ห้ามตอบข้อความอื่นนอกเหนือจาก JSON ดังกล่าว''';
 
     final requestBody = {
       "contents": [
@@ -46,48 +54,22 @@ class GeminiVisionService {
       },
     };
 
-    int maxRetries = 3;
-    for (int attempt = 0; attempt < maxRetries; attempt++) {
-      final response = await http.post(
-        url,
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode(requestBody),
+    final response = await http.post(
+      url,
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode(requestBody),
+    );
+
+    if (response.statusCode == 200) {
+      final Map<String, dynamic> responseData = jsonDecode(response.body);
+      final String rawJsonText =
+          responseData['candidates'][0]['content']['parts'][0]['text'];
+      return jsonDecode(rawJsonText);
+    } else {
+      throw Exception(
+        'Failed to analyze image: ${response.statusCode} - ${response.body}',
       );
-
-      if (response.statusCode == 200) {
-        final Map<String, dynamic> responseData = jsonDecode(response.body);
-
-        // 1. ตรวจสอบว่ามี candidates ตอบกลับมาหรือไม่
-        final candidates = responseData['candidates'] as List?;
-        if (candidates == null || candidates.isEmpty) {
-          throw Exception(
-            'AI ไม่สามารถวิเคราะห์ภาพนี้ได้ อาจเข้าข่ายเนื้อหาที่ไม่เหมาะสม ลองใช้ภาพอื่น',
-          );
-        }
-
-        final candidate = candidates[0];
-
-        // 2. ตรวจสอบว่าโดนระบบความปลอดภัย (SAFETY) บล็อกหรือไม่
-        if (candidate['finishReason'] == 'SAFETY') {
-          throw Exception(
-            'เนื้อหาที่วิเคราะห์เข้าข่ายไม่ปลอดภัยตามนโยบายของ Gemini กรุณาใช้ภาพอื่น',
-          );
-        }
-
-        // อ่านค่าผลลัพธ์ปกติ
-        final String rawJsonText = candidate['content']['parts'][0]['text'];
-        return jsonDecode(rawJsonText);
-      } else if (response.statusCode == 503 && attempt < maxRetries - 1) {
-        await Future.delayed(const Duration(seconds: 2));
-        continue;
-      } else {
-        throw Exception(
-          'Failed to analyze image: ${response.statusCode} - ${response.body}',
-        );
-      }
     }
-
-    throw Exception('Failed to connect to Gemini API after multiple retries.');
   }
 
   String _getMimeType(String path) {
